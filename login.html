@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - ESP8266 MQTT LED控制</title>
+    <link rel="stylesheet" type="text/css" href="css/iview.css">
+    <link rel="stylesheet" type="text/css" href="css/mqtt.css">
+</head>
+<body>
+    <div class="main">
+        <div class="page-header">
+            <h1 class="page-title">🔐 登录</h1>
+        </div>
+        
+        <div class="control-panel">
+            <div class="section-title">ESP8266 MQTT LED控制</div>
+            
+            <form class="login-form" @submit.prevent="login">
+                <div class="form-item">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-input" v-model="password" placeholder="请输入密码" required>
+                </div>
+                
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">登录</button>
+                </div>
+                
+                <div class="error-message" v-if="errorMessage">{{ errorMessage }}</div>
+            </form>
+            
+            <div class="no-password-hint">
+                还没有设置密码？ <a href="config.html?page=password">点击这里设置</a>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="js/vue.min.js"></script>
+    <script type="text/javascript" src="js/iview.min.js"></script>
+    <script>
+        new Vue({
+            el: '.main',
+            data: {
+                password: '',
+                errorMessage: ''
+            },
+            methods: {
+                login() {
+                    const savedPassword = localStorage.getItem('ws2812_password');
+                    if (!savedPassword) {
+                        this.errorMessage = '还没有设置密码，请先设置密码';
+                        return;
+                    }
+                    if (this.password === savedPassword) {
+                        // 登录成功，设置登录状态
+                        localStorage.setItem('ws2812_logged_in', 'true');
+                        // 跳转到控制页面
+                        window.location.href = 'mqtt.html';
+                    } else {
+                        this.errorMessage = '密码错误，请重新输入';
+                    }
+                }
+            },
+            mounted() {
+                // 检查是否已经登录
+                const isLoggedIn = localStorage.getItem('ws2812_logged_in');
+                if (isLoggedIn === 'true') {
+                    window.location.href = 'mqtt.html';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

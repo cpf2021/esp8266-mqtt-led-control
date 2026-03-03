@@ -14,9 +14,11 @@
 		<template>
 			<div class="main">
 				<div class="page-header">
-					<h1 class="page-title">💡 WS2812 智能灯带</h1>
-					<a href="config.html" class="config-btn">⚙️</a>
-				</div>
+						<h1 class="page-title">💡 WS2812 智能灯带</h1>
+						<a href="config.html" class="config-btn">⚙️</a>
+						<a href="config.html?page=password" class="config-btn">🔐</a>
+						<a href="#" class="config-btn" @click="logout">🚪</a>
+					</div>
 
 				<div class="mode-tabs">
 					<div class="tab-item" :class="{ 'active': controlMode === 'simple' }"
@@ -157,7 +159,8 @@
 				},
 				connectionStatus: 'disconnected',
 				connectionStatusText: '未连接',
-				brightnessTimer: null
+				brightnessTimer: null,
+				isLoggedIn: false
 			},
 			methods: {
 				switchFun() {
@@ -247,6 +250,12 @@
 				goToEditor() {
 					window.location.href = 'editor.html';
 				},
+				logout() {
+					// 清除登录状态
+					localStorage.removeItem('ws2812_logged_in');
+					// 跳转到登录页面
+					window.location.href = 'login.html';
+				},
 				mqttConf() {
 					console.log('MQTT配置:', this.options);
 					this.client = mqtt.connect(this.options.url, this.options);
@@ -286,6 +295,18 @@
 				}
 			},
 			mounted() {
+				// 检查登录状态
+				const isLoggedIn = localStorage.getItem('ws2812_logged_in');
+				const hasPassword = localStorage.getItem('ws2812_password');
+				
+				if (hasPassword && isLoggedIn !== 'true') {
+					// 有密码但未登录，跳转到登录页面
+					window.location.href = 'login.html';
+					return;
+				}
+				
+				this.isLoggedIn = true;
+				
 				const saved = localStorage.getItem('ws2812_effects');
 				if (saved) {
 					this.savedEffects = JSON.parse(saved);
@@ -325,20 +346,20 @@
 							console.log('连接URL:', this.options.url);
 							console.log('MQTT协议版本:', this.options.protocolVersion);
 						}
+						this.mqttConf();
 					} else {
 						console.error('配置格式错误或缺少激活平台');
+						this.connectionStatus = 'disconnected';
+						this.connectionStatusText = '配置错误';
+						this.$Message.error('MQTT配置格式错误，请重新配置');
 					}
 				} else {
 					console.error('未找到保存的配置');
-					// 使用默认的巴法云配置进行测试
-					this.options.url = 'wss://bemfa.com:9504/wss';
-					this.options.topic = 'NV3VbjJLw002';
-					this.options.clientId = 'c57619e525344a88a245b13e78aa8a41';
-					this.options.username = '';
-					this.options.password = '';
-					console.log('使用默认巴法云配置进行测试');
+					// 当没有保存的配置时，不自动连接
+					this.connectionStatus = 'disconnected';
+					this.connectionStatusText = '未配置';
+					this.$Message.warning('请先配置MQTT连接参数');
 				}
-				this.mqttConf();
 				const urlParams = new URLSearchParams(window.location.search);
 				const mode = urlParams.get('mode');
 				if (mode === 'custom') {

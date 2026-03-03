@@ -749,6 +749,16 @@
 				}
 			},
 			mounted() {
+				// 检查登录状态
+				const isLoggedIn = localStorage.getItem('ws2812_logged_in');
+				const hasPassword = localStorage.getItem('ws2812_password');
+				
+				if (hasPassword && isLoggedIn !== 'true') {
+					// 有密码但未登录，跳转到登录页面
+					window.location.href = 'login.html';
+					return;
+				}
+				
 				const mqttConfig = localStorage.getItem('ws2812_mqtt_config');
 				console.log('加载配置:', mqttConfig);
 				if (mqttConfig) {

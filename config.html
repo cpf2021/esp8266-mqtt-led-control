@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>平台配置</title>
+	<link rel="stylesheet" type="text/css" href="css/iview.css">
+	<link rel="stylesheet" type="text/css" href="css/mqtt.css">
+
+</head>
+
+<body class="config-page">
+	<div id="app">
+		<template>
+			<div class="main">
+				<div class="page-header">
+					<a :href="'mqtt.html?mode=custom'" class="back-btn">← 返回</a>
+					<h1 class="page-title">⚙️ 平台配置</h1>
+				</div>
+
+				<div class="control-panel">
+					<div class="section-title">选择平台</div>
+
+					<div v-for="(platform, key) in platforms" :key="key" class="platform-card"
+						:class="{ 'active': currentPlatform === key }" @click="selectPlatform(key)">
+						<div class="platform-header">
+							<span class="platform-icon">{{ platform.icon }}</span>
+							<div>
+								<div class="platform-name">
+									{{ platform.name }}
+									<span v-if="config[key] && config[key].url"
+										class="status-badge connected">已配置</span>
+								</div>
+								<div class="platform-desc">{{ platform.desc }}</div>
+								<div v-if="key === 'thingscloud'" class="platform-desc"
+									style="margin-top: 8px; font-size: 11px; color: rgba(255, 255, 255, 0.4);">
+									<strong>配置说明：</strong><br>
+									• 服务器地址：在设备详情页的"连接"选项卡获取<br>
+									• 用户名：填写 AccessToken<br>
+									• 密码：填写 ProjectKey<br>
+									• 主题：常用主题如 attributes、attributes/push 等
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div v-if="currentPlatform" class="config-form">
+						<div class="section-title">{{ platforms[currentPlatform].name }} 配置</div>
+
+						<div class="form-item">
+							<label class="form-label">服务器地址 *</label>
+							<input type="text" class="form-input" v-model="tempConfig.url"
+								:placeholder="platforms[currentPlatform].urlPlaceholder">
+							<div class="form-hint">{{ platforms[currentPlatform].urlHint }}</div>
+							<div v-if="currentPlatform === 'thingscloud'" class="form-hint" style="margin-top: 5px;">
+								示例：gz-4-mqtt.iot-api.com（仅域名，无需协议前缀）
+							</div>
+						</div>
+
+						<div class="form-item">
+							<label class="form-label">主题 *</label>
+							<input type="text" class="form-input" v-model="tempConfig.topic"
+								:placeholder="platforms[currentPlatform].topicPlaceholder">
+							<div class="form-hint">{{ platforms[currentPlatform].topicHint }}</div>
+							<div v-if="currentPlatform === 'thingscloud'" class="form-hint" style="margin-top: 5px;">
+								常用主题：<br>
+								• attributes（设备上报属性）<br>
+								• attributes/push（接收云端下发）<br>
+								• event/report/（上报事件）<br>
+								• data/（上报自定义数据）
+							</div>
+						</div>
+
+						<div class="form-item" v-if="platforms[currentPlatform].needAuth">
+							<label class="form-label">用户名 <span v-if="platforms[currentPlatform].authRequired"
+									style="color:#ff4d4f">*</span></label>
+							<input type="text" class="form-input" v-model="tempConfig.username"
+								:placeholder="platforms[currentPlatform].authRequired ? '必填' : '可选'">
+							<div v-if="currentPlatform === 'thingscloud'" class="form-hint" style="margin-top: 5px;">
+								请填写设备的 AccessToken
+							</div>
+						</div>
+
+						<div class="form-item" v-if="platforms[currentPlatform].needAuth">
+							<label class="form-label">密码 <span v-if="platforms[currentPlatform].authRequired"
+									style="color:#ff4d4f">*</span></label>
+							<input type="password" class="form-input" v-model="tempConfig.password"
+								:placeholder="platforms[currentPlatform].authRequired ? '必填' : '可选'">
+							<div class="form-hint" v-if="platforms[currentPlatform].authHint">{{
+								platforms[currentPlatform].authHint }}</div>
+							<div v-if="currentPlatform === 'thingscloud'" class="form-hint" style="margin-top: 5px;">
+								请填写设备的 ProjectKey
+							</div>
+						</div>
+
+						<div class="form-item" v-if="platforms[currentPlatform].dataFormat">
+							<label class="form-label">数据格式</label>
+							<select class="form-input" v-model="tempConfig.dataFormat">
+								<option value="simple">简单格式 (当前)</option>
+								<option value="json">JSON格式</option>
+								<option value="aliyun">阿里云IoT格式</option>
+								<option value="tencent">腾讯云IoT格式</option>
+							</select>
+						</div>
+
+						<div class="btn-group">
+							<button class="btn btn-default" @click="testConnection">测试连接</button>
+							<button class="btn btn-primary" @click="saveConfig">保存配置</button>
+						</div>
+					</div>
+				</div>
+
+				<div class="bottom-status"
+					:class="{ 'connected': connectionStatus === 'connected', 'disconnected': connectionStatus === 'disconnected' }">
+					<span class="status-dot"></span>
+					<span>测试状态: {{ connectionStatusText }}</span>
+				</div>
+			</div>
+		</template>
+	</div>
+
+	<script type="text/javascript" src="js/vue.min.js"></script>
+	<script type="text/javascript" src="js/iview.min.js"></script>
+	<script src="js/mqtt.js"></script>
+	<script>
+		new Vue({
+			el: '#app',
+			data: {
+				currentPlatform: '',
+				config: {},
+				tempConfig: {
+					url: '',
+					topic: '',
+					username: '',
+					password: '',
+					dataFormat: 'simple'
+				},
+				platforms: {
+					bemfa: {
+						name: '巴法云',
+						icon: '☁️',
+						desc: '免费、支持米家/小爱同学、微信小程序',
+						urlPlaceholder: 'wss://bemfa.com:9504/wss',
+						urlHint: '巴法云WebSocket加密端口，路径为/wss',
+						topicPlaceholder: 'light001',
+						topicHint: '设备主题，在巴法云创建设备时设置',
+						authHint: '使用私钥作为客户端ID，用户名可为空',
+						needAuth: true,
+						authRequired: false,
+						dataFormat: false,
+						dataFormatType: 'bemfa',
+						protocolVersion: 4
+					},
+					emqx: {
+						name: 'EMQX (公共服务器)',
+						icon: '🌐',
+						desc: '免费公共MQTT服务器，适合测试',
+						urlPlaceholder: 'ws://broker.emqx.io:8083/mqtt',
+						urlHint: '公共服务器无需认证',
+						topicPlaceholder: 'connect_all_esp8266_mqtt_led_topic',
+						topicHint: '设备订阅的主题',
+						needAuth: false,
+						dataFormat: false
+					},
+
+					homeassistant: {
+						name: 'Home Assistant',
+						icon: '🏠',
+						desc: '开源智能家居平台',
+						urlPlaceholder: 'ws://192.168.1.x:8123/api/websocket',
+						urlHint: 'Home Assistant地址',
+						topicPlaceholder: 'homeassistant/light/esp8266_led/set',
+						topicHint: '实体ID对应主题',
+						needAuth: true,
+						dataFormat: true
+					},
+					aliyun: {
+						name: '阿里云IoT',
+						icon: '☁️',
+						desc: '阿里云物联网平台',
+						urlPlaceholder: 'wss://<ProductKey>.iot-as-mqtt.cn-shanghai.aliyuncs.com:443',
+						urlHint: '阿里云IoT平台地址',
+						topicPlaceholder: '/sys/<ProductKey>/<DeviceName>/thing/service/property/set',
+						topicHint: '属性设置主题',
+						needAuth: true,
+						dataFormat: true
+					},
+					custom: {
+						name: '自定义MQTT',
+						icon: '🔧',
+						desc: '自定义MQTT服务器',
+						urlPlaceholder: 'ws://your-server:8083/mqtt',
+						urlHint: '支持ws://或wss://协议',
+						topicPlaceholder: 'your/topic',
+						topicHint: '设备订阅的主题',
+						needAuth: true,
+						dataFormat: true
+					}
+				},
+				testClient: null,
+				connectionStatus: 'disconnected',
+				connectionStatusText: '未测试'
+			},
+			methods: {
+				selectPlatform(key) {
+					this.currentPlatform = key;
+					if (this.config[key]) {
+						this.tempConfig = { ...this.config[key] };
+					} else {
+						this.tempConfig = {
+							url: this.platforms[key].urlPlaceholder,
+							topic: this.platforms[key].topicPlaceholder,
+							username: '',
+							password: '',
+							dataFormat: 'simple'
+						};
+					}
+				},
+				saveConfig() {
+					if (!this.tempConfig.url || !this.tempConfig.topic) {
+						this.$Message.error('请填写服务器地址和主题');
+						return;
+					}
+					if (this.platforms[this.currentPlatform].authRequired) {
+						if (!this.tempConfig.username || !this.tempConfig.password) {
+							this.$Message.error('请填写用户名和密码');
+							return;
+						}
+					}
+					this.config[this.currentPlatform] = { ...this.tempConfig };
+					this.config.activePlatform = this.currentPlatform;
+					localStorage.setItem('ws2812_mqtt_config', JSON.stringify(this.config));
+					this.$Message.success('配置已保存');
+				},
+				testConnection() {
+					if (!this.tempConfig.url) {
+						this.$Message.error('请填写服务器地址');
+						return;
+					}
+					this.connectionStatus = 'connecting';
+					this.connectionStatusText = '连接中...';
+					if (this.testClient) {
+						this.testClient.end();
+					}
+					const options = {
+						clientId: this.currentPlatform === 'bemfa' ? this.tempConfig.password : 'test_' + new Date().getTime(),
+						clean: true,
+						connectTimeout: 5000,
+						protocolVersion: 4 // MQTT 3.1.1
+					};
+					// 处理不同平台的连接参数
+					let connectUrl;
+					if (this.currentPlatform === 'bemfa') {
+						// 巴法云：构建正确的WebSocket URL
+						let cleanUrl = this.tempConfig.url.trim();
+						cleanUrl = cleanUrl.replace(/^\w+:\/\//, '');
+						cleanUrl = cleanUrl.split(':')[0];
+						connectUrl = 'wss://' + cleanUrl + ':9504/wss';
+					} else {
+						// 其他平台：使用配置的完整URL
+						connectUrl = this.tempConfig.url;
+					}
+					console.log('测试连接URL:', connectUrl);
+					// 巴法云：使用私钥作为客户端ID时，不需要用户名和密码
+					if (this.currentPlatform !== 'bemfa') {
+						if (this.tempConfig.username) {
+							options.username = this.tempConfig.username;
+						}
+						if (this.tempConfig.password) {
+							options.password = this.tempConfig.password;
+						}
+					}
+					try {
+						this.testClient = mqtt.connect(connectUrl, options);
+						this.testClient.on('connect', () => {
+							this.connectionStatus = 'connected';
+							this.connectionStatusText = '连接成功';
+							this.$Message.success('连接成功！');
+							setTimeout(() => {
+								if (this.testClient) {
+									this.testClient.end();
+								}
+							}, 2000);
+						});
+						this.testClient.on('error', (err) => {
+							this.connectionStatus = 'disconnected';
+							this.connectionStatusText = '连接失败';
+							this.$Message.error('连接失败: ' + err.message);
+						});
+					} catch (e) {
+						this.connectionStatus = 'disconnected';
+						this.connectionStatusText = '连接失败';
+						this.$Message.error('连接失败: ' + e.message);
+					}
+				},
+				formatCommandForPlatform(platform, command) {
+					const platformConfig = this.platforms[platform];
+					if (!platformConfig) return command;
+
+					if (platformConfig.dataFormatType === 'bemfa') {
+						return this.formatBemfaCommand(command);
+					} else if (platformConfig.dataFormatType === 'aliyun') {
+						return this.formatAliyunCommand(command);
+					} else if (platformConfig.dataFormatType === 'tencent') {
+						return this.formatTencentCommand(command);
+					} else {
+						return command;
+					}
+				},
+				formatBemfaCommand(command) {
+					try {
+						const parsed = JSON.parse(command);
+						if (parsed.l === 1 && parsed.f && parsed.f.length > 0) {
+							const frame = parsed.f[0];
+							if (frame.length > 1) {
+								const delay = frame[0];
+								const leds = frame.slice(1);
+								return `on,${delay}`;
+							} else {
+								const led = leds[0];
+								if (led.length === 4) {
+									return `color#${led[1]},${led[2]},${led[3]}`;
+								} else {
+									return 'on';
+								}
+							}
+						} else if (parsed.l === 0) {
+							return 'off';
+						}
+						return command;
+					} catch (e) {
+						return command;
+					}
+				},
+				formatAliyunCommand(command) {
+					try {
+						const parsed = JSON.parse(command);
+						if (parsed.l === 1 && parsed.f && parsed.f.length > 0) {
+							const frame = parsed.f[0];
+							if (frame.length > 1) {
+								const delay = frame[0];
+								const leds = frame.slice(1);
+								const brightness = leds[0];
+								return `brightness,${brightness}`;
+							} else {
+								const led = leds[0];
+								if (led.length === 4) {
+									const color = `rgb(${led[1]},${led[2]},${led[3]})`;
+									return JSON.stringify({
+										id: 'light001',
+										version: '1.0',
+										params: {
+											PowerSwitch: 1,
+											Color: {
+												r: led[1],
+												g: led[2],
+												b: led[3]
+											}
+										}
+									});
+								} else {
+									return 'on';
+								}
+							}
+						} else if (parsed.l === 0) {
+							return JSON.stringify({
+								id: 'light001',
+								version: '1.0',
+								params: {
+									PowerSwitch: 0
+								}
+							});
+						}
+						return command;
+					} catch (e) {
+						return command;
+					}
+				},
+				formatTencentCommand(command) {
+					try {
+						const parsed = JSON.parse(command);
+						if (parsed.l === 1 && parsed.f && parsed.f.length > 0) {
+							const frame = parsed.f[0];
+							if (frame.length > 1) {
+								const delay = frame[0];
+								const leds = frame.slice(1);
+								const brightness = leds[0];
+								return `brightness,${brightness}`;
+							} else {
+								const led = leds[0];
+								if (led.length === 4) {
+									const color = `rgb(${led[1]},${led[2]},${led[3]})`;
+									return JSON.stringify({
+										id: 'light001',
+										version: '1.0',
+										params: {
+											LightSwitch: 1,
+											Color: {
+												r: led[1],
+												g: led[2],
+												b: led[3]
+											}
+										}
+									});
+								} else {
+									return 'on';
+								}
+							}
+						} else if (parsed.l === 0) {
+							return JSON.stringify({
+								id: 'light001',
+								version: '1.0',
+								params: {
+									LightSwitch: 0
+								}
+							});
+						}
+						return command;
+					} catch (e) {
+						return command;
+					}
+				}
+			},
+			mounted() {
+				const saved = localStorage.getItem('ws2812_mqtt_config');
+				if (saved) {
+					this.config = JSON.parse(saved);
+					if (this.config.activePlatform) {
+						this.selectPlatform(this.config.activePlatform);
+					}
+				}
+			}
+		});
+	</script>
+</body>
+
+</html>

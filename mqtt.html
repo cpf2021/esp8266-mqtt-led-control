@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>ESP8266-MQTT-WS2812</title>
+	<link rel="stylesheet" type="text/css" href="css/iview.css">
+	<link rel="stylesheet" type="text/css" href="css/mqtt.css">
+</head>
+
+<body>
+	<div id="app">
+		<template>
+			<div class="main">
+				<div class="page-header">
+					<h1 class="page-title">💡 WS2812 智能灯带</h1>
+					<a href="config.html" class="config-btn">⚙️</a>
+				</div>
+
+				<div class="mode-tabs">
+					<div class="tab-item" :class="{ 'active': controlMode === 'simple' }"
+						@click="controlMode = 'simple'">
+						<span class="tab-icon">💡</span>
+						<span class="tab-text">简单模式</span>
+					</div>
+					<div class="tab-item" :class="{ 'active': controlMode === 'custom' }"
+						@click="controlMode = 'custom'">
+						<span class="tab-icon">⚙️</span>
+						<span class="tab-text">高级模式</span>
+					</div>
+				</div>
+
+				<div v-if="controlMode === 'simple'" class="simple-mode">
+					<div class="simple-container">
+						<div class="lamp-card" :class="{ 'lamp-on': ledDevice.status === 1 }" @click="switchFun">
+							<div class="lamp-glow" v-if="ledDevice.status === 1"></div>
+							<div class="lamp-icon">
+								<span v-if="ledDevice.status === 1">💡</span>
+								<span v-else class="lamp-off-icon">💡</span>
+							</div>
+							<div class="lamp-status">{{ ledDevice.status === 1 ? '已开启' : '已关闭' }}</div>
+						</div>
+						<div class="simple-hint">点击灯泡开关灯</div>
+					</div>
+				</div>
+
+				<div v-else class="custom-mode">
+					<div class="control-panel">
+						<div class="section-title">⚡ 开关控制</div>
+						<div class="switch-buttons">
+							<Button type="success" size="large" @click="sendCommand('on')">💡 开灯</Button>
+							<Button type="error" size="large" @click="sendCommand('off')">🌑 关灯</Button>
+						</div>
+
+						<div class="section-title">🔆 亮度调节</div>
+						<div class="brightness-control">
+							<span class="brightness-label">暗</span>
+							<input type="range" v-model="brightness" min="0" max="255" @input="sendBrightnessRealtime">
+							<span class="brightness-label">亮</span>
+							<span class="brightness-value">{{ brightness }}</span>
+						</div>
+
+						<div class="section-title">🎨 系统预设</div>
+						<div class="preset-section">
+							<div class="preset-category">单色</div>
+							<div class="preset-grid">
+								<Button class="preset-btn color-btn" style="background: #ff4d4f; color: #fff;"
+									@click="sendSystemPreset('red')">🔴 红色</Button>
+								<Button class="preset-btn color-btn" style="background: #52c41a; color: #fff;"
+									@click="sendSystemPreset('green')">🟢 绿色</Button>
+								<Button class="preset-btn color-btn" style="background: #1890ff; color: #fff;"
+									@click="sendSystemPreset('blue')">🔵 蓝色</Button>
+								<Button class="preset-btn color-btn" style="background: #fadb14; color: #333;"
+									@click="sendSystemPreset('yellow')">🟡 黄色</Button>
+								<Button class="preset-btn color-btn" style="background: #722ed1; color: #fff;"
+									@click="sendSystemPreset('purple')">🟣 紫色</Button>
+								<Button class="preset-btn color-btn" style="background: #13c2c2; color: #fff;"
+									@click="sendSystemPreset('cyan')">🔵 青色</Button>
+								<Button class="preset-btn color-btn"
+									style="background: #fff; color: #333; border: 1px solid #ddd;"
+									@click="sendSystemPreset('white')">⚪ 白色</Button>
+							</div>
+						</div>
+						<div class="preset-section">
+							<div class="preset-category">动态效果</div>
+							<div class="preset-grid">
+								<Button class="preset-btn" type="primary" @click="sendSystemPreset('rainbow')">🌈
+									彩虹</Button>
+								<Button class="preset-btn" type="warning" @click="sendSystemPreset('running')">🏃
+									跑马灯</Button>
+								<Button class="preset-btn" type="info" @click="sendSystemPreset('flow')">💧 流水灯</Button>
+								<Button class="preset-btn" @click="sendSystemPreset('wave')">🌊 波浪</Button>
+								<Button class="preset-btn" @click="sendSystemPreset('bounce')">⚡ 弹跳</Button>
+								<Button class="preset-btn" @click="sendSystemPreset('flash')">💡 闪烁</Button>
+								<Button class="preset-btn" @click="sendSystemPreset('gradient')">🎨 渐变</Button>
+							</div>
+						</div>
+
+						<div class="section-title">👤 用户预设</div>
+						<div class="preset-section" v-if="savedEffects.length > 0">
+							<div class="preset-grid">
+								<Button class="preset-btn" v-for="(effect, index) in savedEffects" :key="index"
+									@click="editUserPreset(index)">
+									{{ effect.icon || '📁' }} {{ effect.name }}
+								</Button>
+							</div>
+						</div>
+						<div class="user-presets-empty" v-else>
+							<span>📌 暂无用户预设，点击下方按钮添加</span>
+						</div>
+
+						<div class="add-preset-section">
+							<button class="add-preset-btn" @click="goToEditor">
+								<span class="btn-icon">✨</span>
+								<span>添加用户预设</span>
+							</button>
+						</div>
+					</div>
+				</div>
+
+				<div class="bottom-status"
+					:class="{ 'connected': connectionStatus === 'connected', 'disconnected': connectionStatus === 'disconnected', 'reconnecting': connectionStatus === 'reconnecting' }">
+					<span class="status-dot"></span>
+					<span>网络连接状态: {{ connectionStatusText }}</span>
+				</div>
+			</div>
+		</template>
+	</div>
+	<script type="text/javascript" src="js/vue.min.js"></script>
+	<script type="text/javascript" src="js/iview.min.js"></script>
+	<script src="js/mqtt.js"></script>
+	<script>
+		const myVue = new Vue({
+			el: '#app',
+			data: {
+				controlMode: 'simple',
+				ledDevice: {
+					descText: '',
+					img: ['img/OFF.png', 'img/ON.png'],
+					color: ['#E9E9E9', '#19BF6C'],
+					descTextStyle: { color: '#E9E9E9' },
+					status: 0
+				},
+				brightness: 50,
+				savedEffects: [],
+				mqttConfig: null,
+				client: null,
+				options: {
+					url: 'ws://broker.emqx.io:8083/mqtt',
+					topic: 'connect_all_esp8266_mqtt_led_topic',
+					connectTimeout: 10000,
+					clientId: 'connect_all_esp8266_mqtt_led_' + new Date().getTime(),
+					clean: true,
+					keepalive: 60,
+					protocolVersion: 4
+				},
+				connectionStatus: 'disconnected',
+				connectionStatusText: '未连接',
+				brightnessTimer: null
+			},
+			methods: {
+				switchFun() {
+					let status = this.ledDevice.status === 0 ? 1 : 0;
+					this.ledDevice.status = status;
+					this.ledDevice.descTextStyle = { color: this.ledDevice.color[status] };
+					this.sendCommand(status === 1 ? 'on' : 'off');
+				},
+				sendCommand(cmd) {
+					if (this.client && this.client.connected) {
+						let finalCmd = cmd;
+						if (this.mqttConfig && this.mqttConfig.activePlatform === 'bemfa') {
+							finalCmd = this.formatBemfaCommand(cmd);
+						}
+						this.client.publish(this.options.topic, finalCmd, { qos: 1 });
+						this.$Message.success('已发送: ' + (finalCmd.length > 50 ? finalCmd.substring(0, 50) + '...' : finalCmd));
+					} else {
+						this.$Message.error('MQTT 未连接');
+					}
+				},
+				formatBemfaCommand(cmd) {
+					if (cmd === 'on') return 'on';
+					if (cmd === 'off') return 'off';
+					if (cmd.startsWith('brightness:')) {
+						const brightness = cmd.split(':')[1];
+						return 'br#' + Math.round(brightness * 2.55);
+					}
+					if (cmd.startsWith('c:')) {
+						try {
+							const parsed = JSON.parse(cmd.substring(2));
+							if (parsed.f && parsed.f.length > 0) {
+								const frame = parsed.f[0];
+								if (frame.length > 1) {
+									const leds = frame.slice(1);
+									if (leds.length > 0 && leds[0].length === 4) {
+										const led = leds[0];
+										return 'color#' + led[1] + ',' + led[2] + ',' + led[3];
+									}
+								}
+							}
+						} catch (e) { }
+					}
+					return cmd;
+				},
+
+				sendBrightnessRealtime() {
+					if (this.brightnessTimer) {
+						clearTimeout(this.brightnessTimer);
+					}
+					this.brightnessTimer = setTimeout(() => {
+						this.sendCommand('brightness:' + this.brightness);
+					}, 100);
+				},
+				getLedColor(led) {
+					if (led.r === 0 && led.g === 0 && led.b === 0) {
+						return '#333';
+					}
+					return 'rgb(' + led.r + ',' + led.g + ',' + led.b + ')';
+				},
+				sendSystemPreset(type) {
+					window.location.href = 'editor.html?preset=' + type;
+				},
+				sendUserPreset(index) {
+					const effect = this.savedEffects[index];
+					const frames = effect.frames.map(f => {
+						const arr = [f.delay];
+						f.leds.forEach((led, i) => {
+							if (led.r > 0 || led.g > 0 || led.b > 0) {
+								arr.push(i, led.r, led.g, led.b);
+							}
+						});
+						return arr;
+					});
+					const cmd = 'c:' + JSON.stringify({ l: effect.loop ? 1 : 0, f: frames });
+					this.sendCommand(cmd);
+					this.$Message.success('用户预设 "' + effect.name + '" 已发送');
+				},
+				editUserPreset(index) {
+					localStorage.setItem('ws2812_editing_effect', JSON.stringify(this.savedEffects[index]));
+					window.location.href = 'editor.html?edit=' + index;
+				},
+				deleteSavedEffect(index) {
+					this.savedEffects.splice(index, 1);
+					localStorage.setItem('ws2812_effects', JSON.stringify(this.savedEffects));
+					this.$Message.success('效果已删除');
+				},
+				goToEditor() {
+					window.location.href = 'editor.html';
+				},
+				mqttConf() {
+					console.log('MQTT配置:', this.options);
+					this.client = mqtt.connect(this.options.url, this.options);
+					this.client.on('connect', function () {
+						console.log('MQTT连接成功!');
+						myVue.$Message.success('MQTT 连接成功!');
+						myVue.connectionStatus = 'connected';
+						myVue.connectionStatusText = '已连接';
+						myVue.client.subscribe(myVue.options.topic, function (err) {
+							if (!err) console.log('订阅成功:', myVue.options.topic);
+							else console.error('订阅失败:', err);
+						});
+					}).on('reconnect', function () {
+						console.log('MQTT正在重连...');
+						myVue.connectionStatus = 'reconnecting';
+						myVue.connectionStatusText = '正在重连';
+					}).on('error', function (err) {
+						console.error('MQTT连接失败:', err);
+						myVue.$Message.error('MQTT 连接失败: ' + err.message);
+						myVue.connectionStatus = 'disconnected';
+						myVue.connectionStatusText = '连接失败';
+					}).on('end', function () {
+						console.log('MQTT连接断开');
+						myVue.connectionStatus = 'disconnected';
+						myVue.connectionStatusText = '连接断开';
+					}).on('message', function (topic, message) {
+						const msg = message.toString();
+						console.log('收到消息:', topic, msg);
+						if (msg === 'on') {
+							myVue.ledDevice.status = 1;
+							myVue.ledDevice.descTextStyle = { color: myVue.ledDevice.color[1] };
+						} else if (msg === 'off') {
+							myVue.ledDevice.status = 0;
+							myVue.ledDevice.descTextStyle = { color: myVue.ledDevice.color[0] };
+						}
+					});
+				}
+			},
+			mounted() {
+				const saved = localStorage.getItem('ws2812_effects');
+				if (saved) {
+					this.savedEffects = JSON.parse(saved);
+				}
+				const mqttConfig = localStorage.getItem('ws2812_mqtt_config');
+				console.log('加载配置:', mqttConfig);
+				if (mqttConfig) {
+					this.mqttConfig = JSON.parse(mqttConfig);
+					console.log('解析后的配置:', this.mqttConfig);
+					if (this.mqttConfig.activePlatform && this.mqttConfig[this.mqttConfig.activePlatform]) {
+						const activeConfig = this.mqttConfig[this.mqttConfig.activePlatform];
+						console.log('激活平台:', this.mqttConfig.activePlatform);
+						console.log('平台配置:', activeConfig);
+						this.options.topic = activeConfig.topic;
+						// 处理不同平台的连接参数
+						if (this.mqttConfig.activePlatform === 'bemfa') {
+							// 巴法云：使用私钥作为客户端ID
+							// 构建正确的WebSocket URL
+							let cleanUrl = activeConfig.url.trim();
+							cleanUrl = cleanUrl.replace(/^\w+:\/\//, '');
+							cleanUrl = cleanUrl.split(':')[0];
+							this.options.url = 'wss://' + cleanUrl + ':9504/wss';
+							this.options.clientId = activeConfig.password;
+							this.options.username = '';
+							this.options.password = '';
+							// 确保使用 MQTT 3.1.1 协议
+							this.options.protocolVersion = 4;
+							console.log('巴法云连接URL:', this.options.url);
+							console.log('巴法云客户端ID:', this.options.clientId);
+						} else {
+							// 其他平台：使用配置的完整URL
+							this.options.url = activeConfig.url;
+							if (activeConfig.username) this.options.username = activeConfig.username;
+							if (activeConfig.password) this.options.password = activeConfig.password;
+							// 确保使用 MQTT 3.1.1 协议
+							this.options.protocolVersion = 4;
+							console.log('连接URL:', this.options.url);
+							console.log('MQTT协议版本:', this.options.protocolVersion);
+						}
+					} else {
+						console.error('配置格式错误或缺少激活平台');
+					}
+				} else {
+					console.error('未找到保存的配置');
+					// 使用默认的巴法云配置进行测试
+					this.options.url = 'wss://bemfa.com:9504/wss';
+					this.options.topic = 'NV3VbjJLw002';
+					this.options.clientId = 'c57619e525344a88a245b13e78aa8a41';
+					this.options.username = '';
+					this.options.password = '';
+					console.log('使用默认巴法云配置进行测试');
+				}
+				this.mqttConf();
+				const urlParams = new URLSearchParams(window.location.search);
+				const mode = urlParams.get('mode');
+				if (mode === 'custom') {
+					this.controlMode = 'custom';
+				}
+			}
+		});
+	</script>
+</body>
+
+</html>

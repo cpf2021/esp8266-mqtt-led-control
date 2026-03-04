@@ -751,10 +751,10 @@
 			mounted() {
 				// 检查登录状态
 				const isLoggedIn = localStorage.getItem('ws2812_logged_in');
-				const hasPassword = localStorage.getItem('ws2812_password');
 				
-				if (hasPassword && isLoggedIn !== 'true') {
-					// 有密码但未登录，跳转到登录页面
+				// 强制登录，无论是否设置过密码
+				if (isLoggedIn !== 'true') {
+					// 未登录，跳转到登录页面
 					window.location.href = 'login.html';
 					return;
 				}

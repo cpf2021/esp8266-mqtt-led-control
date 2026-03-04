@@ -15,144 +15,111 @@
 		<template>
 			<div class="main">
 				<div class="page-header">
-					<a :href="currentPage === 'password' ? 'login.html' : 'mqtt.html?mode=custom'" class="back-btn">←
-						返回</a>
-					<h1 class="page-title">{{ currentPage === 'password' ? '🔐 密码设置' : '⚙️ 平台配置' }}</h1>
+					<a href="mqtt.html?mode=custom" class="back-btn">← 返回</a>
+					<h1 class="page-title">⚙️ 平台配置</h1>
 				</div>
 
 				<div class="control-panel">
-					<!-- 密码设置页面 -->
-					<div v-if="currentPage === 'password'" class="password-form">
-						<div class="section-title">密码设置</div>
-						<div class="form-item">
-							<label class="form-label">当前密码</label>
-							<input type="password" class="form-input" v-model="currentPassword"
-								placeholder="请输入当前密码（首次设置留空）">
-							<div class="form-hint" v-if="!hasPassword">首次设置密码，当前密码留空即可</div>
-						</div>
-						<div class="form-item">
-							<label class="form-label">新密码 *</label>
-							<input type="password" class="form-input" v-model="newPassword" placeholder="请输入新密码">
-							<div class="form-hint">密码长度至少6位</div>
-						</div>
-						<div class="form-item">
-							<label class="form-label">确认新密码 *</label>
-							<input type="password" class="form-input" v-model="confirmPassword" placeholder="请再次输入新密码">
-						</div>
-						<div class="btn-group">
-							<button class="btn btn-primary" @click="savePassword">保存密码</button>
-							<button class="btn btn-default" @click="clearPassword">清除密码</button>
-						</div>
-						<div class="password-info" v-if="passwordInfo">
-							{{ passwordInfo }}
-						</div>
-					</div>
-
 					<!-- 平台配置页面 -->
-					<div v-else>
-						<div class="section-title">选择平台</div>
+					<div class="section-title">选择平台</div>
 
-						<div v-for="(platform, key) in platforms" :key="key" class="platform-card"
-							:class="{ 'active': currentPlatform === key }" @click="selectPlatform(key)">
-							<div class="platform-header">
-								<span class="platform-icon">{{ platform.icon }}</span>
-								<div>
-									<div class="platform-name">
-										{{ platform.name }}
-										<span v-if="config[key] && config[key].url"
-											class="status-badge connected">已配置</span>
-									</div>
-									<div class="platform-desc">{{ platform.desc }}</div>
-									<div v-if="key === 'thingscloud'" class="platform-desc"
-										style="margin-top: 8px; font-size: 11px; color: rgba(255, 255, 255, 0.4);">
-										<strong>配置说明：</strong><br>
-										• 服务器地址：在设备详情页的"连接"选项卡获取<br>
-										• 用户名：填写 AccessToken<br>
-										• 密码：填写 ProjectKey<br>
-										• 主题：常用主题如 attributes、attributes/push 等
-									</div>
+					<div v-for="(platform, key) in platforms" :key="key" class="platform-card"
+						:class="{ 'active': currentPlatform === key }" @click="selectPlatform(key)">
+						<div class="platform-header">
+							<span class="platform-icon">{{ platform.icon }}</span>
+							<div>
+								<div class="platform-name">
+									{{ platform.name }}
+									<span v-if="config[key] && config[key].url"
+										class="status-badge connected">已配置</span>
 								</div>
-							</div>
-						</div>
-
-						<div v-if="currentPlatform" class="config-form">
-							<div class="section-title">{{ platforms[currentPlatform].name }} 配置</div>
-
-							<div class="form-item">
-								<label class="form-label">服务器地址 *</label>
-								<input type="text" class="form-input" v-model="tempConfig.url"
-									:placeholder="platforms[currentPlatform].urlPlaceholder">
-								<div class="form-hint">{{ platforms[currentPlatform].urlHint }}</div>
-								<div v-if="currentPlatform === 'thingscloud'" class="form-hint"
-									style="margin-top: 5px;">
-									示例：gz-4-mqtt.iot-api.com（仅域名，无需协议前缀）
+								<div class="platform-desc">{{ platform.desc }}</div>
+								<div v-if="key === 'thingscloud'" class="platform-desc"
+									style="margin-top: 8px; font-size: 11px; color: rgba(255, 255, 255, 0.4);">
+									<strong>配置说明：</strong><br>
+									• 服务器地址：在设备详情页的"连接"选项卡获取<br>
+									• 用户名：填写 AccessToken<br>
+									• 密码：填写 ProjectKey<br>
+									• 主题：常用主题如 attributes、attributes/push 等
 								</div>
-							</div>
-
-							<div class="form-item">
-								<label class="form-label">主题 *</label>
-								<input type="text" class="form-input" v-model="tempConfig.topic"
-									:placeholder="platforms[currentPlatform].topicPlaceholder">
-								<div class="form-hint">{{ platforms[currentPlatform].topicHint }}</div>
-								<div v-if="currentPlatform === 'thingscloud'" class="form-hint"
-									style="margin-top: 5px;">
-									常用主题：<br>
-									• attributes（设备上报属性）<br>
-									• attributes/push（接收云端下发）<br>
-									• event/report/（上报事件）<br>
-									• data/（上报自定义数据）
-								</div>
-							</div>
-
-							<div class="form-item" v-if="platforms[currentPlatform].needAuth">
-								<label class="form-label">用户名 <span v-if="platforms[currentPlatform].authRequired"
-										style="color:#ff4d4f">*</span></label>
-								<input type="text" class="form-input" v-model="tempConfig.username"
-									:placeholder="platforms[currentPlatform].authRequired ? '必填' : '可选'">
-								<div v-if="currentPlatform === 'thingscloud'" class="form-hint"
-									style="margin-top: 5px;">
-									请填写设备的 AccessToken
-								</div>
-							</div>
-
-							<div class="form-item" v-if="platforms[currentPlatform].needAuth">
-								<label class="form-label">密码 <span v-if="platforms[currentPlatform].authRequired"
-										style="color:#ff4d4f">*</span></label>
-								<input type="password" class="form-input" v-model="tempConfig.password"
-									:placeholder="platforms[currentPlatform].authRequired ? '必填' : '可选'">
-								<div class="form-hint" v-if="platforms[currentPlatform].authHint">{{
-									platforms[currentPlatform].authHint }}</div>
-								<div v-if="currentPlatform === 'thingscloud'" class="form-hint"
-									style="margin-top: 5px;">
-									请填写设备的 ProjectKey
-								</div>
-							</div>
-
-							<div class="form-item" v-if="platforms[currentPlatform].dataFormat">
-								<label class="form-label">数据格式</label>
-								<select class="form-input" v-model="tempConfig.dataFormat">
-									<option value="simple">简单格式 (当前)</option>
-									<option value="json">JSON格式</option>
-									<option value="aliyun">阿里云IoT格式</option>
-									<option value="tencent">腾讯云IoT格式</option>
-								</select>
-							</div>
-
-							<div class="btn-group">
-								<button class="btn btn-default" @click="testConnection">测试连接</button>
-								<button class="btn btn-primary" @click="saveConfig">保存配置</button>
 							</div>
 						</div>
 					</div>
-				</div>
 
-				<div class="bottom-status"
-					:class="{ 'connected': connectionStatus === 'connected', 'disconnected': connectionStatus === 'disconnected' }">
-					<span class="status-dot"></span>
-					<span>测试状态: {{ connectionStatusText }}</span>
+					<div v-if="currentPlatform" class="config-form">
+						<div class="section-title">{{ platforms[currentPlatform].name }} 配置</div>
+
+						<div class="form-item">
+							<label class="form-label">服务器地址 *</label>
+							<input type="text" class="form-input" v-model="tempConfig.url"
+								:placeholder="platforms[currentPlatform].urlPlaceholder">
+							<div class="form-hint">{{ platforms[currentPlatform].urlHint }}</div>
+							<div v-if="currentPlatform === 'thingscloud'" class="form-hint" style="margin-top: 5px;">
+								示例：gz-4-mqtt.iot-api.com（仅域名，无需协议前缀）
+							</div>
+						</div>
+
+						<div class="form-item">
+							<label class="form-label">主题 *</label>
+							<input type="text" class="form-input" v-model="tempConfig.topic"
+								:placeholder="platforms[currentPlatform].topicPlaceholder">
+							<div class="form-hint">{{ platforms[currentPlatform].topicHint }}</div>
+							<div v-if="currentPlatform === 'thingscloud'" class="form-hint" style="margin-top: 5px;">
+								常用主题：<br>
+								• attributes（设备上报属性）<br>
+								• attributes/push（接收云端下发）<br>
+								• event/report/（上报事件）<br>
+								• data/（上报自定义数据）
+							</div>
+						</div>
+
+						<div class="form-item" v-if="platforms[currentPlatform].needAuth">
+							<label class="form-label">用户名 <span v-if="platforms[currentPlatform].authRequired"
+									style="color:#ff4d4f">*</span></label>
+							<input type="text" class="form-input" v-model="tempConfig.username"
+								:placeholder="platforms[currentPlatform].authRequired ? '必填' : '可选'">
+							<div v-if="currentPlatform === 'thingscloud'" class="form-hint" style="margin-top: 5px;">
+								请填写设备的 AccessToken
+							</div>
+						</div>
+
+						<div class="form-item" v-if="platforms[currentPlatform].needAuth">
+							<label class="form-label">密码 <span v-if="platforms[currentPlatform].authRequired"
+									style="color:#ff4d4f">*</span></label>
+							<input type="password" class="form-input" v-model="tempConfig.password"
+								:placeholder="platforms[currentPlatform].authRequired ? '必填' : '可选'">
+							<div class="form-hint" v-if="platforms[currentPlatform].authHint">{{
+								platforms[currentPlatform].authHint }}</div>
+							<div v-if="currentPlatform === 'thingscloud'" class="form-hint" style="margin-top: 5px;">
+								请填写设备的 ProjectKey
+							</div>
+						</div>
+
+						<div class="form-item" v-if="platforms[currentPlatform].dataFormat">
+							<label class="form-label">数据格式</label>
+							<select class="form-input" v-model="tempConfig.dataFormat">
+								<option value="simple">简单格式 (当前)</option>
+								<option value="json">JSON格式</option>
+								<option value="aliyun">阿里云IoT格式</option>
+								<option value="tencent">腾讯云IoT格式</option>
+							</select>
+						</div>
+
+						<div class="btn-group">
+							<button class="btn btn-default" @click="testConnection">测试连接</button>
+							<button class="btn btn-primary" @click="saveConfig">保存配置</button>
+						</div>
+					</div>
 				</div>
 			</div>
-		</template>
+
+			<div class="bottom-status"
+				:class="{ 'connected': connectionStatus === 'connected', 'disconnected': connectionStatus === 'disconnected' }">
+				<span class="status-dot"></span>
+				<span>测试状态: {{ connectionStatusText }}</span>
+			</div>
+	</div>
+	</template>
 	</div>
 
 	<script type="text/javascript" src="js/vue.min.js"></script>
@@ -162,7 +129,6 @@
 		new Vue({
 			el: '#app',
 			data: {
-				currentPage: 'platform', // 'platform' 或 'password'
 				currentPlatform: '',
 				config: {},
 				tempConfig: {
@@ -172,12 +138,6 @@
 					password: '',
 					dataFormat: 'simple'
 				},
-				// 密码设置相关
-				currentPassword: '',
-				newPassword: '',
-				confirmPassword: '',
-				passwordInfo: '',
-				hasPassword: false,
 				platforms: {
 					bemfa: {
 						name: '巴法云',
@@ -245,54 +205,6 @@
 				connectionStatusText: '未测试'
 			},
 			methods: {
-				savePassword() {
-					// 验证新密码
-					if (!this.newPassword || this.newPassword.length < 6) {
-						this.$Message.error('新密码长度至少6位');
-						return;
-					}
-
-					// 验证确认密码
-					if (this.newPassword !== this.confirmPassword) {
-						this.$Message.error('两次输入的密码不一致');
-						return;
-					}
-
-					// 验证当前密码
-					const savedPassword = localStorage.getItem('ws2812_password');
-					if (savedPassword && this.currentPassword !== savedPassword) {
-						this.$Message.error('当前密码错误');
-						return;
-					}
-
-					// 保存密码
-					localStorage.setItem('ws2812_password', this.newPassword);
-					localStorage.setItem('ws2812_logged_in', 'true');
-					this.hasPassword = true;
-					this.$Message.success('密码设置成功！');
-					// 清空表单
-					this.currentPassword = '';
-					this.newPassword = '';
-					this.confirmPassword = '';
-				},
-				clearPassword() {
-					// 验证当前密码
-					const savedPassword = localStorage.getItem('ws2812_password');
-					if (savedPassword && this.currentPassword !== savedPassword) {
-						this.$Message.error('当前密码错误');
-						return;
-					}
-
-					// 清除密码
-					localStorage.removeItem('ws2812_password');
-					localStorage.removeItem('ws2812_logged_in');
-					this.hasPassword = false;
-					this.$Message.success('密码已清除！');
-					// 清空表单
-					this.currentPassword = '';
-					this.newPassword = '';
-					this.confirmPassword = '';
-				},
 				selectPlatform(key) {
 					this.currentPlatform = key;
 					if (this.config[key]) {
@@ -513,16 +425,15 @@
 				}
 			},
 			mounted() {
-				// 检查页面参数
-				const urlParams = new URLSearchParams(window.location.search);
-				const page = urlParams.get('page');
-				if (page === 'password') {
-					this.currentPage = 'password';
-				}
+				// 检查登录状态
+				const isLoggedIn = localStorage.getItem('ws2812_logged_in');
 
-				// 检查是否已有密码
-				const savedPassword = localStorage.getItem('ws2812_password');
-				this.hasPassword = !!savedPassword;
+				// 强制登录，无论是否设置过密码
+				if (isLoggedIn !== 'true') {
+					// 未登录，跳转到登录页面
+					window.location.href = 'login.html';
+					return;
+				}
 
 				// 加载MQTT配置
 				const saved = localStorage.getItem('ws2812_mqtt_config');

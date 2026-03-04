@@ -29,9 +29,7 @@
                 <div class="error-message" v-if="errorMessage">{{ errorMessage }}</div>
             </form>
             
-            <div class="no-password-hint">
-                还没有设置密码？ <a href="config.html?page=password">点击这里设置</a>
-            </div>
+
         </div>
     </div>
     <script type="text/javascript" src="js/vue.min.js"></script>
@@ -45,12 +43,9 @@
             },
             methods: {
                 login() {
-                    const savedPassword = localStorage.getItem('ws2812_password');
-                    if (!savedPassword) {
-                        this.errorMessage = '还没有设置密码，请先设置密码';
-                        return;
-                    }
-                    if (this.password === savedPassword) {
+                    // 固定密码
+                    const fixedPassword = 'cpf200918';
+                    if (this.password === fixedPassword) {
                         // 登录成功，设置登录状态
                         localStorage.setItem('ws2812_logged_in', 'true');
                         // 跳转到控制页面

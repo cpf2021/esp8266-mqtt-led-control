@@ -23,10 +23,99 @@ body {
 .page-header {
 	display: flex;
 	align-items: center;
+	justify-content: space-between;
 	gap: 15px;
-	margin-bottom: 5px;
+	margin-bottom: 15px;
 	padding-bottom: 10px;
 	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	width: 100%;
+}
+
+.header-content {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	flex: 1;
+	justify-content: center;
+	white-space: nowrap;
+}
+
+.config-buttons {
+	display: flex;
+	gap: 10px;
+}
+
+.device-status {
+	display: flex;
+	gap: 15px;
+	flex: 1;
+	justify-content: center;
+}
+
+.device-status.small {
+	gap: 5px;
+	font-size: 10px;
+	color: rgba(255, 255, 255, 0.7);
+}
+
+.status-item {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	background: rgba(255, 255, 255, 0.1);
+	padding: 6px 12px;
+	border-radius: 20px;
+	font-size: 12px;
+}
+
+.status-label {
+	color: rgba(255, 255, 255, 0.7);
+}
+
+.status-value {
+	font-weight: bold;
+	color: #fff;
+}
+
+.status-value.online {
+	color: #52c41a;
+}
+
+.status-value.offline {
+	color: #ff4d4f;
+}
+
+.status-item.small .status-value {
+	font-weight: normal;
+}
+
+.status-item.small .status-value.online {
+	color: #52c41a;
+}
+
+.status-item.small .status-value.offline {
+	color: #ff4d4f;
+}
+
+.logo {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex: 1;
+	justify-content: center;
+	white-space: nowrap;
+}
+
+.logo-icon {
+	font-size: 32px;
+	animation: pulse 2s infinite;
+}
+
+.logo-text {
+	font-size: 20px;
+	font-weight: bold;
+	color: #fff;
+	text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .page-title {
@@ -666,6 +755,15 @@ img {
 
 .color-btn {
 	font-weight: bold;
+}
+
+/* 禁用状态的单色按钮样式 */
+.color-btn:disabled,
+.preset-btn:disabled {
+	opacity: 0.6 !important;
+	cursor: not-allowed !important;
+	transform: none !important;
+	box-shadow: none !important;
 }
 
 .user-presets-empty {
@@ -1668,4 +1766,39 @@ select.form-input {
 		padding: 10px;
 		font-size: 13px;
 	}
+}
+
+/* 选中预设按钮的样式 */
+.preset-btn.selected {
+	box-shadow: 0 0 20px rgba(79, 70, 229, 0.6) !important;
+	transform: scale(1.05) !important;
+	border: 2px solid #4f46e5 !important;
+	animation: pulse 2s infinite !important;
+}
+
+.color-btn.selected {
+	box-shadow: 0 0 20px rgba(255, 255, 255, 0.6) !important;
+	border: 2px solid #fff !important;
+}
+
+/* 禁用状态的样式 */
+.lamp-card.disabled {
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+.simple-hint.disabled {
+	color: rgba(255, 255, 255, 0.3);
+}
+
+.brightness-control.disabled {
+	opacity: 0.6;
+}
+
+.brightness-control.disabled input[type="range"] {
+	cursor: not-allowed;
+}
+
+.add-preset-btn:disabled {
+	pointer-events: none;
 }

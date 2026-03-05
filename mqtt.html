@@ -4,7 +4,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>ESP8266-MQTT-WS2812</title>
+	<title>ESP8266 MQTT LED Control v1.0.0</title>
 	<link rel="stylesheet" type="text/css" href="css/iview.css">
 	<link rel="stylesheet" type="text/css" href="css/mqtt.css">
 </head>
@@ -14,10 +14,23 @@
 		<template>
 			<div class="main">
 				<div class="page-header">
-						<h1 class="page-title">💡 WS2812 智能灯带</h1>
+					<div class="header-content">
+						<div class="logo">
+							<span class="logo-icon">💡</span>
+							<span class="logo-text">ESP8266 LED Control</span>
+						</div>
+						<div class="device-status small">
+							<span class="status-label">设备状态:</span>
+							<span class="status-value" :class="{ 'online': deviceOnline, 'offline': !deviceOnline }">
+								{{ deviceOnline ? '在线' : '离线' }}
+							</span>
+						</div>
+					</div>
+					<div class="config-buttons">
 						<a href="config.html" class="config-btn">⚙️</a>
 						<a href="#" class="config-btn" @click="logout">🚪</a>
 					</div>
+				</div>
 
 				<div class="mode-tabs">
 					<div class="tab-item" :class="{ 'active': controlMode === 'simple' }"
@@ -34,7 +47,8 @@
 
 				<div v-if="controlMode === 'simple'" class="simple-mode">
 					<div class="simple-container">
-						<div class="lamp-card" :class="{ 'lamp-on': ledDevice.status === 1 }" @click="switchFun">
+						<div class="lamp-card" :class="{ 'lamp-on': ledDevice.status === 1, 'disabled': !deviceOnline }"
+							@click="switchFun" :style="{ cursor: deviceOnline ? 'pointer' : 'not-allowed' }">
 							<div class="lamp-glow" v-if="ledDevice.status === 1"></div>
 							<div class="lamp-icon">
 								<span v-if="ledDevice.status === 1">💡</span>
@@ -42,7 +56,8 @@
 							</div>
 							<div class="lamp-status">{{ ledDevice.status === 1 ? '已开启' : '已关闭' }}</div>
 						</div>
-						<div class="simple-hint">点击灯泡开关灯</div>
+						<div class="simple-hint" :class="{ 'disabled': !deviceOnline }">{{ deviceOnline ? '点击灯泡开关灯' :
+							'设备离线，无法控制' }}</div>
 					</div>
 				</div>
 
@@ -50,14 +65,17 @@
 					<div class="control-panel">
 						<div class="section-title">⚡ 开关控制</div>
 						<div class="switch-buttons">
-							<Button type="success" size="large" @click="sendCommand('on')">💡 开灯</Button>
-							<Button type="error" size="large" @click="sendCommand('off')">🌑 关灯</Button>
+							<Button type="success" size="large" @click="sendCommand('on')" :disabled="!deviceOnline">💡
+								开灯</Button>
+							<Button type="error" size="large" @click="sendCommand('off')" :disabled="!deviceOnline">🌑
+								关灯</Button>
 						</div>
 
 						<div class="section-title">🔆 亮度调节</div>
-						<div class="brightness-control">
+						<div class="brightness-control" :class="{ 'disabled': !deviceOnline }">
 							<span class="brightness-label">暗</span>
-							<input type="range" v-model="brightness" min="0" max="255" @input="sendBrightnessRealtime">
+							<input type="range" v-model="brightness" min="0" max="255" @input="sendBrightnessRealtime"
+								:disabled="!deviceOnline">
 							<span class="brightness-label">亮</span>
 							<span class="brightness-value">{{ brightness }}</span>
 						</div>
@@ -66,35 +84,62 @@
 						<div class="preset-section">
 							<div class="preset-category">单色</div>
 							<div class="preset-grid">
-								<Button class="preset-btn color-btn" style="background: #ff4d4f; color: #fff;"
-									@click="sendSystemPreset('red')">🔴 红色</Button>
-								<Button class="preset-btn color-btn" style="background: #52c41a; color: #fff;"
-									@click="sendSystemPreset('green')">🟢 绿色</Button>
-								<Button class="preset-btn color-btn" style="background: #1890ff; color: #fff;"
-									@click="sendSystemPreset('blue')">🔵 蓝色</Button>
-								<Button class="preset-btn color-btn" style="background: #fadb14; color: #333;"
-									@click="sendSystemPreset('yellow')">🟡 黄色</Button>
-								<Button class="preset-btn color-btn" style="background: #722ed1; color: #fff;"
-									@click="sendSystemPreset('purple')">🟣 紫色</Button>
-								<Button class="preset-btn color-btn" style="background: #13c2c2; color: #fff;"
-									@click="sendSystemPreset('cyan')">🔵 青色</Button>
 								<Button class="preset-btn color-btn"
+									:class="{ 'selected': currentSelectedPreset === 'red' }"
+									style="background: #ff4d4f; color: #fff;" @click="sendSystemPreset('red')"
+									:disabled="!deviceOnline">🔴
+									红色</Button>
+								<Button class="preset-btn color-btn"
+									:class="{ 'selected': currentSelectedPreset === 'green' }"
+									style="background: #52c41a; color: #fff;" @click="sendSystemPreset('green')"
+									:disabled="!deviceOnline">🟢
+									绿色</Button>
+								<Button class="preset-btn color-btn"
+									:class="{ 'selected': currentSelectedPreset === 'blue' }"
+									style="background: #1890ff; color: #fff;" @click="sendSystemPreset('blue')"
+									:disabled="!deviceOnline">🔵
+									蓝色</Button>
+								<Button class="preset-btn color-btn"
+									:class="{ 'selected': currentSelectedPreset === 'yellow' }"
+									style="background: #fadb14; color: #333;" @click="sendSystemPreset('yellow')"
+									:disabled="!deviceOnline">🟡
+									yellow</Button>
+								<Button class="preset-btn color-btn"
+									:class="{ 'selected': currentSelectedPreset === 'purple' }"
+									style="background: #722ed1; color: #fff;" @click="sendSystemPreset('purple')"
+									:disabled="!deviceOnline">🟣
+									紫色</Button>
+								<Button class="preset-btn color-btn"
+									:class="{ 'selected': currentSelectedPreset === 'cyan' }"
+									style="background: #13c2c2; color: #fff;" @click="sendSystemPreset('cyan')"
+									:disabled="!deviceOnline">🔵
+									青色</Button>
+								<Button class="preset-btn color-btn"
+									:class="{ 'selected': currentSelectedPreset === 'white' }"
 									style="background: #fff; color: #333; border: 1px solid #ddd;"
-									@click="sendSystemPreset('white')">⚪ 白色</Button>
+									@click="sendSystemPreset('white')" :disabled="!deviceOnline">⚪ 白色</Button>
 							</div>
 						</div>
 						<div class="preset-section">
 							<div class="preset-category">动态效果</div>
 							<div class="preset-grid">
-								<Button class="preset-btn" type="primary" @click="sendSystemPreset('rainbow')">🌈
+								<Button class="preset-btn" :class="{ 'selected': currentSelectedPreset === 'rainbow' }"
+									type="primary" @click="sendSystemPreset('rainbow')" :disabled="!deviceOnline">🌈
 									彩虹</Button>
-								<Button class="preset-btn" type="warning" @click="sendSystemPreset('running')">🏃
+								<Button class="preset-btn" :class="{ 'selected': currentSelectedPreset === 'running' }"
+									type="warning" @click="sendSystemPreset('running')" :disabled="!deviceOnline">🏃
 									跑马灯</Button>
-								<Button class="preset-btn" type="info" @click="sendSystemPreset('flow')">💧 流水灯</Button>
-								<Button class="preset-btn" @click="sendSystemPreset('wave')">🌊 波浪</Button>
-								<Button class="preset-btn" @click="sendSystemPreset('bounce')">⚡ 弹跳</Button>
-								<Button class="preset-btn" @click="sendSystemPreset('flash')">💡 闪烁</Button>
-								<Button class="preset-btn" @click="sendSystemPreset('gradient')">🎨 渐变</Button>
+								<Button class="preset-btn" :class="{ 'selected': currentSelectedPreset === 'flow' }"
+									type="info" @click="sendSystemPreset('flow')" :disabled="!deviceOnline">💧
+									流水灯</Button>
+								<Button class="preset-btn" :class="{ 'selected': currentSelectedPreset === 'wave' }"
+									@click="sendSystemPreset('wave')" :disabled="!deviceOnline">🌊 波浪</Button>
+								<Button class="preset-btn" :class="{ 'selected': currentSelectedPreset === 'bounce' }"
+									@click="sendSystemPreset('bounce')" :disabled="!deviceOnline">⚡ 弹跳</Button>
+								<Button class="preset-btn" :class="{ 'selected': currentSelectedPreset === 'flash' }"
+									@click="sendSystemPreset('flash')" :disabled="!deviceOnline">💡 闪烁</Button>
+								<Button class="preset-btn" :class="{ 'selected': currentSelectedPreset === 'gradient' }"
+									@click="sendSystemPreset('gradient')" :disabled="!deviceOnline">🎨 渐变</Button>
 							</div>
 						</div>
 
@@ -102,7 +147,7 @@
 						<div class="preset-section" v-if="savedEffects.length > 0">
 							<div class="preset-grid">
 								<Button class="preset-btn" v-for="(effect, index) in savedEffects" :key="index"
-									@click="editUserPreset(index)">
+									@click="editUserPreset(index)" :disabled="!deviceOnline">
 									{{ effect.icon || '📁' }} {{ effect.name }}
 								</Button>
 							</div>
@@ -112,18 +157,19 @@
 						</div>
 
 						<div class="add-preset-section">
-							<button class="add-preset-btn" @click="goToEditor">
+							<button class="add-preset-btn" @click="goToEditor" :disabled="!deviceOnline"
+								:style="{ cursor: deviceOnline ? 'pointer' : 'not-allowed', opacity: deviceOnline ? '1' : '0.6' }">
 								<span class="btn-icon">✨</span>
-								<span>添加用户预设</span>
+								<span>{{ deviceOnline ? '添加用户预设' : '设备离线，无法添加' }}</span>
 							</button>
 						</div>
 					</div>
 				</div>
 
-				<div class="bottom-status"
-					:class="{ 'connected': connectionStatus === 'connected', 'disconnected': connectionStatus === 'disconnected', 'reconnecting': connectionStatus === 'reconnecting' }">
+
+				<div class="bottom-status" :class="connectionStatus">
 					<span class="status-dot"></span>
-					<span>网络连接状态: {{ connectionStatusText }}</span>
+					<span>网络状态：{{ connectionStatusText }}</span>
 				</div>
 			</div>
 		</template>
@@ -159,7 +205,11 @@
 				connectionStatus: 'disconnected',
 				connectionStatusText: '未连接',
 				brightnessTimer: null,
-				isLoggedIn: false
+				isLoggedIn: false,
+				deviceOnline: false,
+				currentPreset: '',
+				currentSelectedPreset: '',
+				lastDeviceActivity: 0
 			},
 			methods: {
 				switchFun() {
@@ -220,7 +270,18 @@
 					return 'rgb(' + led.r + ',' + led.g + ',' + led.b + ')';
 				},
 				sendSystemPreset(type) {
-					window.location.href = 'editor.html?preset=' + type;
+					// 发送预设命令
+					if (this.client && this.client.connected) {
+						this.client.publish(this.options.topic, 'preset:' + type, { qos: 1 });
+						// 更新本地选中状态
+						this.currentSelectedPreset = type;
+						this.currentPreset = type;
+						// 保存到本地存储
+						localStorage.setItem('ws2812_current_preset', type);
+						this.$Message.success('预设已发送: ' + type);
+					} else {
+						this.$Message.error('MQTT 未连接');
+					}
 				},
 				sendUserPreset(index) {
 					const effect = this.savedEffects[index];
@@ -235,6 +296,7 @@
 					});
 					const cmd = 'c:' + JSON.stringify({ l: effect.loop ? 1 : 0, f: frames });
 					this.sendCommand(cmd);
+					this.currentPreset = effect.name;
 					this.$Message.success('用户预设 "' + effect.name + '" 已发送');
 				},
 				editUserPreset(index) {
@@ -263,49 +325,151 @@
 						myVue.$Message.success('MQTT 连接成功!');
 						myVue.connectionStatus = 'connected';
 						myVue.connectionStatusText = '已连接';
+						// 初始状态为离线，只有收到设备回复后才设置为在线
+						myVue.deviceOnline = false;
+						myVue.lastDeviceActivity = 0;
 						myVue.client.subscribe(myVue.options.topic, function (err) {
-							if (!err) console.log('订阅成功:', myVue.options.topic);
-							else console.error('订阅失败:', err);
+							if (!err) {
+								console.log('订阅成功:', myVue.options.topic);
+								// 订阅成功后，发送请求获取当前状态
+								myVue.requestCurrentStatus();
+							} else {
+								console.error('订阅失败:', err);
+							}
 						});
 					}).on('reconnect', function () {
 						console.log('MQTT正在重连...');
 						myVue.connectionStatus = 'reconnecting';
 						myVue.connectionStatusText = '正在重连';
+						myVue.deviceOnline = false;
 					}).on('error', function (err) {
 						console.error('MQTT连接失败:', err);
 						myVue.$Message.error('MQTT 连接失败: ' + err.message);
 						myVue.connectionStatus = 'disconnected';
 						myVue.connectionStatusText = '连接失败';
+						myVue.deviceOnline = false;
 					}).on('end', function () {
 						console.log('MQTT连接断开');
 						myVue.connectionStatus = 'disconnected';
 						myVue.connectionStatusText = '连接断开';
+						myVue.deviceOnline = false;
 					}).on('message', function (topic, message) {
 						const msg = message.toString();
 						console.log('收到消息:', topic, msg);
+						// 检查是否是状态查询请求的回声
+						if (msg === 'status:web') {
+							// 忽略状态查询请求的回声
+							console.log('忽略状态查询请求的回声');
+							return;
+						}
+						// 只有收到设备消息后才设置为在线
+						myVue.lastDeviceActivity = Date.now();
+						myVue.deviceOnline = true;
 						if (msg === 'on') {
 							myVue.ledDevice.status = 1;
 							myVue.ledDevice.descTextStyle = { color: myVue.ledDevice.color[1] };
+							myVue.currentPreset = '单色';
 						} else if (msg === 'off') {
 							myVue.ledDevice.status = 0;
 							myVue.ledDevice.descTextStyle = { color: myVue.ledDevice.color[0] };
+							myVue.currentPreset = '';
+						} else if (msg.startsWith('c:')) {
+							// 自定义效果
+							myVue.currentPreset = '自定义效果';
+						} else if (msg.startsWith('status:')) {
+							// 处理设备状态回复
+							const statusData = msg.substring(7);
+							console.log('收到状态回复数据:', statusData);
+							try {
+								// 尝试解析JSON
+								const statusObj = JSON.parse(statusData);
+								console.log('解析后的状态对象:', statusObj);
+								// 检查状态对象是否包含必要的字段
+								if (statusObj.status !== undefined) {
+									// 更新设备状态
+									myVue.ledDevice.status = statusObj.status;
+									myVue.ledDevice.descTextStyle = { color: myVue.ledDevice.color[statusObj.status] };
+									// 更新当前预设
+									myVue.currentPreset = statusObj.preset || '';
+									// 更新选中的预设
+									myVue.currentSelectedPreset = statusObj.preset || '';
+									// 保存当前预设到本地存储
+									localStorage.setItem('ws2812_current_preset', myVue.currentPreset);
+									console.log('设备状态已更新:', statusObj);
+									myVue.$Message.success('设备状态已同步');
+								} else {
+									console.error('状态对象缺少必要字段:', statusObj);
+									myVue.$Message.error('设备状态格式错误');
+								}
+							} catch (e) {
+								console.error('解析状态消息失败:', e);
+								console.error('原始状态数据:', statusData);
+								// 尝试手动解析状态数据
+								try {
+									// 简单的错误处理：如果解析失败，尝试直接设置状态
+									myVue.ledDevice.status = 0;
+									myVue.ledDevice.descTextStyle = { color: myVue.ledDevice.color[0] };
+									myVue.currentPreset = '';
+									myVue.currentSelectedPreset = '';
+									console.log('手动设置设备状态为默认值');
+									myVue.$Message.success('设备状态已同步（默认值）');
+								} catch (e2) {
+									console.error('手动设置状态失败:', e2);
+								}
+							}
 						}
 					});
-				}
+
+					// 检测设备在线状态的定时器
+					setInterval(() => {
+						if (myVue.lastDeviceActivity > 0 && Date.now() - myVue.lastDeviceActivity > 30000) {
+							// 30秒没有收到消息，设备离线
+							if (myVue.deviceOnline) {
+								myVue.deviceOnline = false;
+								// 当设备离线时，重置状态显示
+								console.log('设备离线，重置状态显示');
+								myVue.$Message.warning('设备已离线');
+							}
+						}
+					}, 5000);
+
+					// 定期发送状态查询请求（用于测试）
+					setInterval(() => {
+						if (myVue.client && myVue.client.connected) {
+							console.log('定期发送状态查询请求');
+							myVue.requestCurrentStatus();
+						}
+					}, 10000);
+				},
+				requestCurrentStatus() {
+					// 发送请求获取当前状态
+					// 发送带标识的状态查询命令，区分是网页发送的请求
+					if (this.client && this.client.connected) {
+						// 发送状态查询命令，添加web标识
+						this.client.publish(this.options.topic, 'status:web', { qos: 1 });
+						console.log('已发送状态查询请求');
+					}
+				},
 			},
 			mounted() {
 				// 检查登录状态
 				const isLoggedIn = localStorage.getItem('ws2812_logged_in');
-				
+
 				// 强制登录，无论是否设置过密码
 				if (isLoggedIn !== 'true') {
 					// 未登录，跳转到登录页面
 					window.location.href = 'login.html';
 					return;
 				}
-				
+
 				this.isLoggedIn = true;
-				
+
+				// 加载当前预设
+				const currentPreset = localStorage.getItem('ws2812_current_preset');
+				if (currentPreset) {
+					this.currentPreset = currentPreset;
+				}
+
 				const saved = localStorage.getItem('ws2812_effects');
 				if (saved) {
 					this.savedEffects = JSON.parse(saved);

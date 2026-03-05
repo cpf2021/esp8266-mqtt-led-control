@@ -504,21 +504,34 @@
 					this.generatedCommand = 'c:' + JSON.stringify(effect);
 				},
 				sendCustomEffect() {
-					if (this.frames.length === 0) {
-						this.$Message.error('请先添加帧');
-						return;
-					}
-					this.updateGeneratedCommand();
-					if (this.generatedCommand.length > 1024) {
-						this.$Modal.warning({
-							title: '指令超长警告',
-							content: '指令长度 ' + this.generatedCommand.length + ' 字节，超过1024字节限制！请减少帧数或LED数量。',
-							okText: '确定'
-						});
-						return;
-					}
-					this.sendCommand(this.generatedCommand);
-				},
+				if (this.frames.length === 0) {
+					this.$Message.error('请先添加帧');
+					return;
+				}
+				this.updateGeneratedCommand();
+				if (this.generatedCommand.length > 1024) {
+					this.$Modal.warning({
+						title: '指令超长警告',
+						content: '指令长度 ' + this.generatedCommand.length + ' 字节，超过1024字节限制！请减少帧数或LED数量。',
+						okText: '确定'
+					});
+					return;
+				}
+				this.sendCommand(this.generatedCommand);
+				// 更新当前预设
+				const urlParams = new URLSearchParams(window.location.search);
+				const preset = urlParams.get('preset');
+				if (preset) {
+					// 系统预设
+					localStorage.setItem('ws2812_current_preset', preset);
+				} else if (this.editingIndex !== null && this.savedEffects[this.editingIndex]) {
+					// 编辑的用户预设
+					localStorage.setItem('ws2812_current_preset', this.savedEffects[this.editingIndex].name);
+				} else {
+					// 新创建的效果
+					localStorage.setItem('ws2812_current_preset', '自定义效果');
+				}
+			},
 				sendCommand(cmd) {
 					if (this.client && this.client.connected) {
 						let finalCmd = cmd;
